@@ -1,16 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <OutputType>library</OutputType>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <UseWPF>true</UseWPF>
     <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="Resources\country_flags.png" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\AasxIntegrationBase\AasxIntegrationBase.csproj" />
     <ProjectReference Include="..\AnyUi\AnyUi.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="Resources\country_flags.png">
+      <Pack>True</Pack>
+    </Resource>
     <Resource Include="Resources\msg_error.png" />
     <Resource Include="Resources\msg_hand.png" />
     <Resource Include="Resources\msg_info.png" />
@@ -21,6 +27,8 @@
     <PackageReference Include="ExhaustiveMatching.Analyzer" Version="0.5.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Microsoft.Windows.Compatibility" Version="7.0.3" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.9.0" />
+    <PackageReference Include="System.Formats.Asn1" Version="9.0.2" />
   </ItemGroup>
   <ItemGroup>
     <Page Remove="OriginalResources\FormSmaller.xaml" />
