@@ -7,6 +7,7 @@ using AdminShellNS;
 using AdminShellNS.DiaryData;
 using Extensions;
 using FluentModbus;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -21,6 +22,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Services.Description;
+using Workstation.ServiceModel.Ua;
 using Aas = AasCore.Aas3_0;
 
 namespace AasxPluginAssetInterfaceDescription
@@ -42,7 +44,6 @@ namespace AasxPluginAssetInterfaceDescription
                 } 
 
                 Client.Start();
-                LastActive = DateTime.Now;
                 
                 await Task.Yield();
                 return true;
@@ -78,75 +79,97 @@ namespace AasxPluginAssetInterfaceDescription
 
         override public async Task<int> UpdateItemValueAsync(AidIfxItemStatus item)
         {
-            // access
-            if (item?.FormData?.Href?.HasContent() != true
-                || item.FormData.Bacv_useService?.HasContent() != true
-                || !IsConnected())
-                return 0;
+            var items = new List<AidIfxItemStatus> { item }; // Add your items to this list
+
             int res = 0;
 
-            // GET?
-            if (item.FormData.Bacv_useService.Trim().ToLower() == "readproperty")
+            // Iterate over each item to update
+            foreach (var itm in items)
             {
+                // Ensure that necessary references are present
+                if (itm?.FormData?.Href?.HasContent() != true ||
+                    itm.FormData.Bacv_useService?.HasContent() != true ||
+                    !IsConnected() ||
+                    Client == null)
+                {
+                    continue;
+                }
+
                 try
                 {
-                    // Extract device ID
+                    // Extract device ID from the URI or other source based on your implementation
                     uint deviceId = uint.Parse(TargetUri.Host);
 
-                    // Find device address
                     BacnetAddress deviceAddress;
                     if (!DeviceAddresses.ContainsKey(deviceId))
                     {
-                        // Perform WhoIs request
                         Client.WhoIs((int)deviceId, (int)deviceId);
-                        await Task.Delay(1000); // Wait for response
+                        await Task.Delay(1000);
                     }
 
                     if (!DeviceAddresses.TryGetValue(deviceId, out deviceAddress))
                     {
-                        throw new Exception($"Device {deviceId} not found.");
+                        continue; // Skip this item if address not found
                     }
 
-                    
-                    // get object type,instance, and property
-                    var href = item.FormData.Href.TrimStart('/');
+                    var href = itm.FormData.Href.TrimStart('/');
                     string[] mainParts = href.Split('/');
                     string[] objectParts = mainParts[0].Split(',');
-                    
-                    // Create objectId
-                    var objectType = (BacnetObjectTypes)int.Parse(objectParts[0]); 
+
+                    var objectType = (BacnetObjectTypes)int.Parse(objectParts[0]);
                     uint instance = uint.Parse(objectParts[1]);
                     BacnetObjectId objectId = new BacnetObjectId(objectType, instance);
-                    
-                    // Get property from href
                     var propertyId = (BacnetPropertyIds)int.Parse(mainParts[1]);
 
-                    // Read Property
-                    IList<BacnetValue> values;
-                    bool result = Client.ReadPropertyRequest(
-                        deviceAddress,
-                        objectId,
-                        propertyId,                   
-                        out values
-                    );
-
-                    if (result)
+                    // READ operation
+                    if (itm.FormData.Bacv_useService.Trim().ToLower() == "readproperty")
                     {
-                        var value = values[0].Value.ToString();
-                        item.Value = value;
-                        res = 1;
-                        NotifyOutputItems(item, value);
+                        try
+                        {
+                            IList<BacnetValue> values = new List<BacnetValue>();
+                            bool result = Client.ReadPropertyRequest(deviceAddress, objectId, propertyId, out values);
+
+                            if (result && values.Count > 0 && values[0].Value != null)
+                            {
+                                itm.Value = values[0].Value.ToString();
+                                NotifyOutputItems(itm, itm.Value);
+                                res++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Exception during read: {ex.Message}");
+                        }
+                    }
+                    // WRITE operation
+                    else if (itm.FormData.Bacv_useService.Trim().ToLower() == "writeproperty")
+                    {
+                        try
+                        {
+                            float staticValue = 29f;
+                            BacnetValue[] writeValue = new BacnetValue[] { new BacnetValue(staticValue) };
+                            bool result = Client.WritePropertyRequest(deviceAddress, objectId, propertyId, writeValue);
+
+                            if (result)
+                            {
+                                itm.Value = staticValue.ToString();
+                                NotifyOutputItems(itm, itm.Value);
+                                res++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Exception during write: {ex.Message}");
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    // set breakpoint in order to get failed connections!
+                    Console.WriteLine($"General exception: {ex.Message}");
                 }
             }
 
             return res;
         }
-
-
     }
 }
