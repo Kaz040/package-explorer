@@ -1,26 +1,8 @@
-﻿using AasxIntegrationBase;
-using AasxIntegrationBase.AdminShellEvents;
-using AasxPluginAssetInterfaceDescription;
-using AasxPredefinedConcepts;
-using AasxPredefinedConcepts.AssetInterfacesDescription;
-using AdminShellNS;
-using AdminShellNS.DiaryData;
-using Extensions;
-using FluentModbus;
+﻿using AdminShellNS;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Globalization;
 using System.IO.BACnet;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Services.Description;
 using Aas = AasCore.Aas3_0;
 
 namespace AasxPluginAssetInterfaceDescription
@@ -29,6 +11,8 @@ namespace AasxPluginAssetInterfaceDescription
     {
         public BacnetClient Client;
         private Dictionary<uint, BacnetAddress> DeviceAddresses = new Dictionary<uint, BacnetAddress>();
+        public BacnetAddress deviceAddress;
+
         override public async Task<bool> Open()
         {
             try
@@ -37,17 +21,28 @@ namespace AasxPluginAssetInterfaceDescription
                 Client.OnIam += OnIamHandler;
 
                 if (TimeOutMs >= 10)
-                { 
+                {
                     Client.Timeout = (int)TimeOutMs;
-                } 
+                }
 
                 Client.Start();
-                LastActive = DateTime.Now;
-                
+
+                // Extract device ID from the URI
+                uint deviceId = uint.Parse(TargetUri.Host);
+                if (!DeviceAddresses.ContainsKey(deviceId))
+                {
+                    Client.WhoIs((int)deviceId, (int)deviceId);
+                    await Task.Delay(1000);
+                }
+                if (!DeviceAddresses.TryGetValue(deviceId, out deviceAddress))
+                {
+                    return false;
+                }
+
                 await Task.Yield();
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 Client = null;
                 return false;
@@ -62,7 +57,6 @@ namespace AasxPluginAssetInterfaceDescription
 
         override public bool IsConnected()
         {
-            // nothing to do, this simple bacnet connection is stateless
             return Client != null;
         }
 
@@ -76,77 +70,101 @@ namespace AasxPluginAssetInterfaceDescription
             }
         }
 
-        override public async Task<int> UpdateItemValueAsync(AidIfxItemStatus item)
+        override public int UpdateItemValue(AidIfxItemStatus item)
         {
-            // access
-            if (item?.FormData?.Href?.HasContent() != true
-                || item.FormData.Bacv_useService?.HasContent() != true
-                || !IsConnected())
-                return 0;
             int res = 0;
-
-            // GET?
-            if (item.FormData.Bacv_useService.Trim().ToLower() == "readproperty")
+            if (item?.FormData?.Href?.HasContent() != true ||
+                item.FormData.Bacv_useService?.HasContent() != true ||
+                !IsConnected() ||
+                Client == null)
             {
-                try
+                return res;
+            }
+            try
+            {
+
+                var href = item.FormData.Href.TrimStart('/');
+                string[] mainParts = href.Split('/');
+                string[] objectParts = mainParts[0].Split(',');
+
+                var objectType = (BacnetObjectTypes)int.Parse(objectParts[0]);
+                uint instance = uint.Parse(objectParts[1]);
+                BacnetObjectId objectId = new BacnetObjectId(objectType, instance);
+
+                var propertyId = (BacnetPropertyIds)int.Parse(mainParts[1]);
+
+                // READ operation
+                if (item.FormData.Bacv_useService.Trim().ToLower() == "readproperty")
                 {
-                    // Extract device ID
-                    uint deviceId = uint.Parse(TargetUri.Host);
-
-                    // Find device address
-                    BacnetAddress deviceAddress;
-                    if (!DeviceAddresses.ContainsKey(deviceId))
+                    try
                     {
-                        // Perform WhoIs request
-                        Client.WhoIs((int)deviceId, (int)deviceId);
-                        await Task.Delay(1000); // Wait for response
+                        IList<BacnetValue> values_r1 = new List<BacnetValue>();
+                        bool result_r1 = Client.ReadPropertyRequest(deviceAddress, objectId, propertyId, out values_r1);
+                        if (result_r1 && values_r1.Count > 0 && values_r1[0].Value != null)
+                        {
+                            item.Value = values_r1[0].Value.ToString();
+                            NotifyOutputItems(item, item.Value);
+                            res = 1;
+                        }
                     }
-
-                    if (!DeviceAddresses.TryGetValue(deviceId, out deviceAddress))
+                    catch (Exception)
                     {
-                        throw new Exception($"Device {deviceId} not found.");
-                    }
-
-                    
-                    // get object type,instance, and property
-                    var href = item.FormData.Href.TrimStart('/');
-                    string[] mainParts = href.Split('/');
-                    string[] objectParts = mainParts[0].Split(',');
-                    
-                    // Create objectId
-                    var objectType = (BacnetObjectTypes)int.Parse(objectParts[0]); 
-                    uint instance = uint.Parse(objectParts[1]);
-                    BacnetObjectId objectId = new BacnetObjectId(objectType, instance);
-                    
-                    // Get property from href
-                    var propertyId = (BacnetPropertyIds)int.Parse(mainParts[1]);
-
-                    // Read Property
-                    IList<BacnetValue> values;
-                    bool result = Client.ReadPropertyRequest(
-                        deviceAddress,
-                        objectId,
-                        propertyId,                   
-                        out values
-                    );
-
-                    if (result)
-                    {
-                        var value = values[0].Value.ToString();
-                        item.Value = value;
-                        res = 1;
-                        NotifyOutputItems(item, value);
+                        return res;
                     }
                 }
-                catch (Exception ex)
+
+                // WRITE operation
+                else if (item.FormData.Bacv_useService.Trim().ToLower() == "writeproperty")
                 {
-                    // set breakpoint in order to get failed connections!
+                    try
+                    {
+                        if (item.MapOutputItems != null)
+                            foreach (var moi in item.MapOutputItems)
+                            {
+                                // valid?
+                                if (moi?.MapRelation?.Second == null)
+                                    continue;
+
+                                // For literal payloads
+                                else if (moi.MapRelation.SecondHint is Aas.Property prop)
+                                {
+                                    if (item.Value == "" || prop.Value == item.Value)
+                                    {
+                                        IList<BacnetValue> values_r2 = new List<BacnetValue>();
+                                        bool result_r2 = Client.ReadPropertyRequest(deviceAddress, objectId, propertyId, out values_r2);
+                                        if (result_r2 && values_r2.Count > 0 && values_r2[0].Value != null && prop.Value == item.Value)
+                                        {
+                                            item.Value = values_r2[0].Value.ToString();
+                                            NotifyOutputItems(item, item.Value);
+                                            res = 1;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        float staticValue = float.Parse(prop.Value);
+                                        BacnetValue[] values_w = new BacnetValue[] { new BacnetValue(staticValue) };
+                                        bool result_w = Client.WritePropertyRequest(deviceAddress, objectId, propertyId, values_w);
+                                        if (result_w)
+                                        {
+                                            item.Value = values_w[0].Value?.ToString();
+                                            NotifyOutputItems(item, item.Value);
+                                            res = 1;
+                                        }
+                                    }
+                                }
+                            }
+                    }
+                    catch (Exception)
+                    {
+                        return res;
+                    }
                 }
             }
-
+            catch (Exception)
+            {
+                return res;
+            }
             return res;
         }
-
-
     }
 }
