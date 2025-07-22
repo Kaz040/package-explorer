@@ -1,6 +1,7 @@
 ﻿using AdminShellNS;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO.BACnet;
 using System.Threading.Tasks;
 using Aas = AasCore.Aas3_0;
@@ -102,7 +103,8 @@ namespace AasxPluginAssetInterfaceDescription
                         bool result_r1 = Client.ReadPropertyRequest(deviceAddress, objectId, propertyId, out values_r1);
                         if (result_r1 && values_r1.Count > 0 && values_r1[0].Value != null)
                         {
-                            item.Value = values_r1[0].Value.ToString();
+                            float val_r1 = (float)values_r1[0].Value;
+                            item.Value = val_r1.ToString("R", CultureInfo.InvariantCulture);
                             NotifyOutputItems(item, item.Value);
                             res = 1;
                         }
@@ -134,19 +136,21 @@ namespace AasxPluginAssetInterfaceDescription
                                         bool result_r2 = Client.ReadPropertyRequest(deviceAddress, objectId, propertyId, out values_r2);
                                         if (result_r2 && values_r2.Count > 0 && values_r2[0].Value != null && prop.Value == item.Value)
                                         {
-                                            item.Value = values_r2[0].Value.ToString();
+                                            float val_r2 = (float)values_r2[0].Value;
+                                            item.Value = val_r2.ToString("R", CultureInfo.InvariantCulture);
                                             NotifyOutputItems(item, item.Value);
                                             res = 1;
                                         }
                                     }
                                     else
                                     {
-                                        float staticValue = float.Parse(prop.Value);
+                                        float staticValue = float.Parse(prop.Value, CultureInfo.InvariantCulture);
                                         BacnetValue[] values_w = new BacnetValue[] { new BacnetValue(staticValue) };
                                         bool result_w = Client.WritePropertyRequest(deviceAddress, objectId, propertyId, values_w);
                                         if (result_w)
                                         {
-                                            item.Value = values_w[0].Value?.ToString();
+                                            float val_r3 = (float)values_w[0].Value;
+                                            item.Value = val_r3.ToString("R", CultureInfo.InvariantCulture);
                                             NotifyOutputItems(item, item.Value);
                                             res = 1;
                                         }
