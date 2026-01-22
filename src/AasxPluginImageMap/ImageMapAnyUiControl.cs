@@ -20,7 +20,7 @@ using AasxIntegrationBase.AasForms;
 using AasxIntegrationBaseGdi;
 using AasxPredefinedConcepts;
 using AasxPredefinedConcepts.ConceptModel;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 using AdminShellNS;
 using Extensions;
 using AnyUi;
@@ -389,7 +389,7 @@ namespace AasxPluginImageMap
             if (fe?.Value != null)
             {
                 // build path
-                var idShortPath = "" + fe.CollectIdShortByParent(
+                var idShortPath = "" + fe.CollectIdShortPathByParent(
                         separatorChar: '.', excludeIdentifiable: true);
 
                 // wrap async

@@ -18,7 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 
 // ReSharper disable MethodHasAsyncOverload
 
@@ -515,7 +515,7 @@ namespace AasxPackageLogic
             // perform UI updates if required
             if (ticket.UiLambdaAction != null && !(ticket.UiLambdaAction is AnyUiLambdaActionNone))
             {
-                // add to "normal" event quoue
+                // add to "normal" event queue
                 MainWindow.AddWishForToplevelAction(ticket.UiLambdaAction);
             }
 

@@ -14,7 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 using AasxIntegrationBase;
 
 namespace AasxPackageLogic.PackageCentral
@@ -232,6 +232,11 @@ namespace AasxPackageLogic.PackageCentral
         /// Main application can register for change events
         /// </summary>
         public PackCntChangeEventHandler ChangeEventHandler = null;
+
+        /// <summary>
+        /// Allow to execute certain main commands, e.g. from container 
+        /// </summary>
+        public IExecuteMainCommand ExecuteMainCommand = null;
 
         //
         // Container members

@@ -27,7 +27,7 @@ using System.Security.Cryptography.Pkcs;
 using System.Text;
 using System.Threading.Tasks;
 using static AasxPackageLogic.PackageCentral.PackageContainerHttpRepoSubset;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 
 // ReSharper disable MethodHasAsyncOverload
 
@@ -69,6 +69,16 @@ namespace AasxPackageLogic
         /// Remembers user input for menu action
         /// </summary>
         protected static string _userLastGetUrl = "http://???:51310";
+
+        /// <summary>
+        /// Flag, if to remember the new identifiable base URI.
+        /// </summary>
+        public bool RememberNewIdentifiableBaseUri = false;
+
+        /// <summary>
+        /// Base URI for new Identifiable elements, if remembered.
+        /// </summary>
+        public string RememberedNewIdentifiableBaseUriStr = null;
 
         /// <summary>
         /// Display context with more features for UI
@@ -113,7 +123,7 @@ namespace AasxPackageLogic
                     // create new AASX package
                     PackageCentral.MainItem.New();
                     // redraw
-                    MainWindow.CommandExecution_RedrawAll();
+                    await MainWindow.CommandExecution_RedrawAllAsync();
                 }
                 catch (Exception ex)
                 {
@@ -159,6 +169,12 @@ namespace AasxPackageLogic
                 await CommandBinding_FixAndFinalizeAsync(ticket);
             }
 
+            if(cmd == "verify")
+            {
+                Log.Singleton.Info("Verifying AASX: {0}", PackageCentral.MainItem.Filename);
+                await CommandBinding_Verify(ticket);
+            }
+
             if (cmd == "save")
             {
                 // start
@@ -174,10 +190,12 @@ namespace AasxPackageLogic
                 // do
                 try
                 {
+                    // remember the base URI is always stopped before new manual operation
+                    RememberNewIdentifiableBaseUri = false;
+
                     // save
                     await PackageCentral.MainItem.SaveAsAsync(runtimeOptions: PackageCentral.CentralRuntimeOptions);
                     
-
                     // backup
                     if (Options.Curr.BackupDir != null)
                         PackageCentral.MainItem.Container.BackupInDir(
@@ -196,7 +214,7 @@ namespace AasxPackageLogic
                     MainWindow.CheckIfToFlushEvents();
 
                     // as saving changes the structure of pending supplementary files, re-display
-                    MainWindow.RedrawAllAasxElements(keepFocus: true);
+                    MainWindow.RedrawAllAasxElementsAsync(keepFocus: true);
                 }
                 catch (Exception ex)
                 {
@@ -267,6 +285,9 @@ namespace AasxPackageLogic
                     // save 
                     DisplayContextPlus.RememberForInitialDirectory(ucsf.TargetFileName);
 
+                    // remember the base URI is always stopped before new manual operation
+                    RememberNewIdentifiableBaseUri = false;
+
                     if (!forceLocal)
                     {
                         // leave it where it is
@@ -290,7 +311,7 @@ namespace AasxPackageLogic
                                 PackageContainerBase.BackupType.FullCopy);
 
                     // as saving changes the structure of pending supplementary files, re-display
-                    MainWindow.RedrawAllAasxElements();
+                    MainWindow.RedrawAllAasxElementsAsync();
 
                     // LRU?
                     // record in LRU?
@@ -349,7 +370,7 @@ namespace AasxPackageLogic
                 try
                 {
                     PackageCentral.MainItem.Close();
-                    MainWindow.RedrawAllAasxElements();
+                    MainWindow.RedrawAllAasxElementsAsync();
                 }
                 catch (Exception ex)
                 {
@@ -380,8 +401,8 @@ namespace AasxPackageLogic
                     await CommandBinding_GeneralDispatchHeadless(cmd, menuItem, ticket);
 
                     // update
-                    MainWindow.RedrawAllAasxElements();
-                    MainWindow.RedrawElementView();
+                    MainWindow.RedrawAllAasxElementsAsync();
+                    await MainWindow.RedrawElementViewAsync();
                     return;
                 }
 
@@ -596,13 +617,129 @@ namespace AasxPackageLogic
                     // make distinct (default comparer should work on list of Identifiables)
                     var idfs2 = idfs.Distinct();
 
-                    // call assistant
-                    await PackageContainerHttpRepoSubset.PerformUploadAssistant(
+                    // call assistant in 3 steps
+                    // get the record
+                    var recordJob = new UploadAssistantJobRecord();
+                    ticket?.ArgValue?.PopulateObjectFromArgs(recordJob);
+
+                    // ask for the record
+                    if (!await PackageContainerHttpRepoSubset.PerformUploadAssistantDialogue(
                         ticket, DisplayContext,
                         "Upload current to Registry or Repository",
+                        recordJob,
+                        idfs: idfs2))
+                        return;
+
+                    // now, perform
+                    await PackageContainerHttpRepoSubset.PerformUploadAssistant(
+                        ticket, DisplayContext,
+                        recordJob,
                         PackageCentral.Main,
-                        idfs2,
-                        PackageCentral.CentralRuntimeOptions);
+                        idfs: idfs2,
+                        runtimeOptions: PackageCentral.CentralRuntimeOptions);
+                }
+                catch (Exception ex)
+                {
+                    LogErrorToTicket(ticket, ex, "when performing api upload assistant");
+                }
+            }
+
+            if (cmd == "apiuploadfiles")
+            {
+                // start
+                ticket.StartExec();
+
+                //do
+                try
+                {
+                    // get the (extended) record
+                    var recordJob = new UploadFilesJobRecord();
+                    ticket?.ArgValue?.PopulateObjectFromArgs(recordJob);
+
+                    // get the file list from the record?
+                    var fns = recordJob.Filenames;
+
+                    if (ticket?.ScriptMode != true)
+                    {
+                        // define dialogue and map presets into dialogue items
+                        var uc = new AnyUiDialogueDataSelectFromList(
+                                        "Select files to be uploaded ..");
+                        uc.SelectFiles = true;
+                        uc.ListOfItems = new AnyUiDialogueListItemList(recordJob.Filenames?.Select(
+                               (s) => new AnyUiDialogueListItem() { Text = s, Tag = s } )) 
+                            ?? new AnyUiDialogueListItemList();
+
+                        // perform dialogue
+                        var res = await DisplayContext.StartFlyoverModalAsync(uc);
+                        if (!res || !uc.Result)
+                            return;
+
+                        fns = uc.ListOfItems.Select((it) => it.Tag as string).ToList();
+                    }
+
+                    // any files
+                    if (fns.Count < 1)
+                    {
+                        LogErrorToTicket(ticket, "No files specified. Aborting!");
+                        return;
+                    }
+
+                    // ask for the record
+                    if (!await PackageContainerHttpRepoSubset.PerformUploadAssistantDialogue(
+                        ticket, DisplayContext,
+                        "Upload current to Registry or Repository",
+                        recordJob,
+                        idfs: null))
+                        return;
+
+                    // over the single files
+                    foreach (var fn in fns)
+                    {
+                        // check extension
+                        var ext = System.IO.Path.GetExtension(fn).ToLower();
+                        if (ext == ".aasx" || ext == ".xml" || ext == ".json")
+                        {
+                            // log
+                            Log.Singleton.Info("Loading package file: {0}", fn);
+
+                            // open
+                            try
+                            {
+                                // load
+                                var env = new AdminShellPackageFileBasedEnv(fn, indirectLoadSave: false);
+                                if (env?.AasEnv == null)
+                                {
+                                    LogErrorToTicket(ticket, $"Error reading file contents! Skipping file: {fn}");
+                                    continue;
+                                }
+
+                                // basically make a list of all Identifiables
+                                var idfs2 = new List<Aas.IIdentifiable>();
+                                idfs2.AddRange(env.AasEnv.AllIdentifiables());
+
+                                // now, perform
+                                await PackageContainerHttpRepoSubset.PerformUploadAssistant(
+                                    ticket, DisplayContext,
+                                    recordJob,
+                                    env,
+                                    idfs: idfs2,
+                                    doNotAskForRowsToUpload: true,
+                                    runtimeOptions: PackageCentral.CentralRuntimeOptions);
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new PackageContainerException(
+                                    $"While opening aasx {fn} from source {this.ToString()} " +
+                                    $"at {AdminShellUtil.ShortLocation(ex)} gave: {ex.Message}");
+                            }
+
+                        }
+                        else
+                        {
+                            LogErrorToTicket(ticket, $"Extension/ file type could not be recognised! Skipping file: {fn}");
+                        }
+
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -928,8 +1065,8 @@ namespace AasxPackageLogic
                 await CommandBinding_GeneralDispatchHeadless(cmd, menuItem, ticket);
 
                 // update
-                MainWindow.RedrawAllAasxElements();
-                MainWindow.RedrawElementView();
+                MainWindow.RedrawAllAasxElementsAsync();
+                await MainWindow.RedrawElementViewAsync();
             }
 
             if (cmd == "submodelread")
@@ -950,8 +1087,8 @@ namespace AasxPackageLogic
                 {
                     await CommandBinding_GeneralDispatchHeadless(cmd, menuItem, ticket);
 
-                    MainWindow.RedrawAllAasxElements();
-                    MainWindow.RedrawElementView();
+                    MainWindow.RedrawAllAasxElementsAsync();
+                    await MainWindow.RedrawElementViewAsync();
                 }
                 catch (Exception ex)
                 {
@@ -1059,8 +1196,8 @@ namespace AasxPackageLogic
                     await CommandBinding_GeneralDispatchHeadless(cmd, menuItem, ticket);
 
                     // redisplay
-                    MainWindow.RedrawAllAasxElements();
-                    MainWindow.RedrawElementView();
+                    MainWindow.RedrawAllAasxElementsAsync();
+                    await MainWindow.RedrawElementViewAsync();
                 }
                 catch (Exception ex)
                 {
@@ -1133,8 +1270,8 @@ namespace AasxPackageLogic
                     await CommandBinding_GeneralDispatchHeadless(cmd, menuItem, ticket);
 
                     // redisplay
-                    MainWindow.RedrawAllAasxElements();
-                    MainWindow.RedrawElementView();
+                    MainWindow.RedrawAllAasxElementsAsync();
+                    await MainWindow.RedrawElementViewAsync();
                 }
                 catch (Exception ex)
                 {
@@ -1161,8 +1298,8 @@ namespace AasxPackageLogic
 					await CommandBinding_GeneralDispatchHeadless(cmd, menuItem, ticket);
 
 					// redisplay
-					MainWindow.RedrawAllAasxElements();
-					MainWindow.RedrawElementView();
+					MainWindow.RedrawAllAasxElementsAsync();
+					await MainWindow.RedrawElementViewAsync();
 				}
 				catch (Exception ex)
 				{
@@ -1191,8 +1328,8 @@ namespace AasxPackageLogic
 					await CommandBinding_GeneralDispatchHeadless(cmd, menuItem, ticket);
 
 					// redisplay
-					MainWindow.RedrawAllAasxElements();
-					MainWindow.RedrawElementView();
+					MainWindow.RedrawAllAasxElementsAsync();
+					await MainWindow.RedrawElementViewAsync();
 				}
 				catch (Exception ex)
 				{
@@ -1201,7 +1338,7 @@ namespace AasxPackageLogic
 				}
 			}
 
-			if (cmd == "submodeltdexport")
+            if (cmd == "submodeltdexport")
             {
                 // filename
                 if (!(await DisplayContextPlus.MenuSelectSaveFilenameToTicketAsync(
@@ -1249,8 +1386,8 @@ namespace AasxPackageLogic
                     await CommandBinding_GeneralDispatchHeadless(cmd, menuItem, ticket);
 
                     // redisplay
-                    MainWindow.RedrawAllAasxElements();
-                    MainWindow.RedrawElementView();
+                    MainWindow.RedrawAllAasxElementsAsync();
+                    await MainWindow.RedrawElementViewAsync();
                 }
                 catch (Exception ex)
                 {
@@ -1723,7 +1860,7 @@ namespace AasxPackageLogic
 					MainWindow.RedrawAllElementsAndFocus(nextFocus: ticket?.SetNextFocus);
 			}
 
-			if (cmd == "convertelement")
+            if (cmd == "convertelement")
             {
                 // check
                 var rf = ticket.DereferencedMainDataObject as Aas.IReferable;
@@ -1933,6 +2070,126 @@ namespace AasxPackageLogic
 
         }
 
+        private async Task CommandBinding_Verify(AasxMenuActionTicket ticket)
+        {
+            try
+            {
+                var env = PackageCentral.Main?.AasEnv;
+                if (env != null)
+                {
+                    List<Reporting.Error> errors = Verification.Verify(env).ToList();
+
+                    var panel = new AnyUiStackPanel();
+                    panel.Padding = new AnyUiThickness(10);
+                    if (errors.Count == 0)
+                    {
+                        // No errors: show a positive message
+                        var noErrorText = new AnyUiTextBlock()
+                        {
+                            Text = "No validation errors found.",
+                            FontSize = 1.2f,
+                            FontWeight = AnyUiFontWeight.Bold,
+                            Foreground = AnyUiBrushes.White,
+                            Padding = new AnyUiThickness(16, 24, 16, 24),
+                            HorizontalAlignment = AnyUiHorizontalAlignment.Center,
+                            VerticalAlignment = AnyUiVerticalAlignment.Center
+                        };
+                        panel.Add(noErrorText);
+                    }
+                    else
+                    {
+                        // Create a grid for the results
+                        var grid = new AnyUiGrid();
+
+                        // Define two columns
+                        grid.ColumnDefinitions.Add(new AnyUiColumnDefinition() { Width = new AnyUiGridLength(2.0, AnyUiGridUnitType.Star) });
+                        grid.ColumnDefinitions.Add(new AnyUiColumnDefinition() { Width = new AnyUiGridLength(3.0, AnyUiGridUnitType.Star) });
+
+                        // Add row for header
+                        grid.RowDefinitions.Add(new AnyUiRowDefinition() { Height = new AnyUiGridLength(1.0, AnyUiGridUnitType.Auto) });
+
+                        // Header
+                        var pathHeader = new AnyUiTextBlock()
+                        {
+                            Text = "Path",
+                            FontWeight = AnyUiFontWeight.Bold,
+                            FontSize = 1.2f,
+                            Padding = new AnyUiThickness(8, 4, 8, 4),
+                            Background = AnyUiBrushes.DarkBlue,
+                            Foreground = AnyUiBrushes.White,
+                        };
+                        AnyUiGrid.SetRow(pathHeader, 0);
+                        AnyUiGrid.SetColumn(pathHeader, 0);
+                        grid.Add(pathHeader);
+
+                        var causeHeader = new AnyUiTextBlock()
+                        {
+                            Text = "Cause",
+                            FontWeight = AnyUiFontWeight.Bold,
+                            FontSize = 1.2f,
+                            Padding = new AnyUiThickness(8, 4, 8, 4),
+                            Background = AnyUiBrushes.DarkBlue,
+                            Foreground = AnyUiBrushes.White
+                        };
+                        AnyUiGrid.SetRow(causeHeader, 0);
+                        AnyUiGrid.SetColumn(causeHeader, 1);
+                        grid.Add(causeHeader);
+
+                        // Add error rows with alternating background
+                        for (int i = 0; i < errors.Count; i++)
+                        {
+                            grid.RowDefinitions.Add(new AnyUiRowDefinition() { Height = new AnyUiGridLength(1.0, AnyUiGridUnitType.Auto) });
+
+                            var isEven = i % 2 == 0;
+                            var bg = isEven ? new AnyUiBrush(0x22000000) : AnyUiBrushes.Transparent;
+
+                            var pathTextBlock = new AnyUiTextBlock()
+                            {
+                                Text = errors[i]?.PathSegments != null ? Reporting.GenerateJsonPath(errors[i].PathSegments) : "",
+                                FontSize = 1.0f,
+                                Padding = new AnyUiThickness(8, 4, 8, 4),
+                                Background = bg,
+                                TextWrapping = AnyUiTextWrapping.Wrap
+                            };
+                            AnyUiGrid.SetRow(pathTextBlock, i + 1);
+                            AnyUiGrid.SetColumn(pathTextBlock, 0);
+                            grid.Add(pathTextBlock);
+
+                            var causeTextBlock = new AnyUiTextBlock()
+                            {
+                                Text = errors[i]?.Cause ?? "",
+                                FontSize = 1.0f,
+                                Padding = new AnyUiThickness(8, 4, 8, 4),
+                                Background = bg,
+                                TextWrapping = AnyUiTextWrapping.Wrap
+                            };
+                            AnyUiGrid.SetRow(causeTextBlock, i + 1);
+                            AnyUiGrid.SetColumn(causeTextBlock, 1);
+                            grid.Add(causeTextBlock);
+                        }
+
+                        // Wrap grid in a panel for padding
+                        panel.Add(grid);
+                    }
+
+                    // Create a custom dialog
+                    var dlg = new AnyUiDialogueDataModalPanel("Validation Results");
+
+                    dlg.ActivateRenderPanel(null, _ => panel);
+                    await DisplayContext.StartFlyoverModalAsync(dlg);
+                }
+                else
+                {
+                    Log.Singleton.Error("No Environment created !!");
+                }
+            }
+            catch (Exception ex) 
+            {
+                Log.Singleton.Error(ex.Message);
+                Log.Singleton.Error(ex.StackTrace);
+            }
+        }
+
         private async Task CommandBinding_FixAndFinalizeAsync(AasxMenuActionTicket ticket)
         {
             // check user
@@ -1992,7 +2249,7 @@ namespace AasxPackageLogic
                     MainWindow.CheckIfToFlushEvents();
 
                     // as saving changes the structure of pending supplementary files, re-display
-                    MainWindow.RedrawAllAasxElements(keepFocus: true);
+                    MainWindow.RedrawAllAasxElementsAsync(keepFocus: true);
                 }
                 catch (Exception ex)
                 {
@@ -2079,7 +2336,7 @@ namespace AasxPackageLogic
 		/// Using the currently loaded AASX, will check if a CD_AasxLoadedNavigateTo elements can be
 		/// found to be activated
 		/// </summary>
-		public bool UiCheckIfActivateLoadedNavTo()
+		public async Task<bool> UiCheckIfActivateLoadedNavTo()
         {
             // access
             if (PackageCentral.Main?.AasEnv == null || MainWindow.GetDisplayElements() == null)
@@ -2120,7 +2377,7 @@ namespace AasxPackageLogic
                 LocationHistory?.Push(veFound);
 
                 // fake selection
-                MainWindow.RedrawElementView();
+                await MainWindow.RedrawElementViewAsync();
                 MainWindow.TakeOverContentEnable(false);
                 MainWindow.UpdateDisplay();
 

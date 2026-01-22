@@ -65,6 +65,7 @@ namespace AasxPackageExplorer
                     args: new AasxMenuListOfArgDefs()
                         .Add("File", "Filename including path and extension."))
                 .AddWpfBlazor(name: "FixAndFinalize", header: "Fix and Finalize ...")
+                .AddWpfBlazor(name: "Verify", header: "Verify ...")
                 .AddWpfBlazor(name: "Close", header: "_Close …")
                 .AddWpfBlazor(name: "CheckAndFix", header: "Check, validate and fix …")
                 .AddMenu(header: "Security …", childs: (new AasxMenu())
@@ -126,6 +127,9 @@ namespace AasxPackageExplorer
                     .AddWpfBlazor(name: "ApiUploadAssistant", header: "Upload assistant …",
                         args: new AasxMenuListOfArgDefs()
                             .AddFromReflection(new PackageContainerHttpRepoSubset.UploadAssistantJobRecord()))
+                    .AddWpfBlazor(name: "ApiUploadFiles", header: "Upload files …",
+                        args: new AasxMenuListOfArgDefs()
+                            .AddFromReflection(new PackageContainerHttpRepoSubset.UploadFilesJobRecord()))
                     .AddWpf(name: "CreateRepoFromApi", header: "Create (local) file repository from API base …",
                         args: new AasxMenuListOfArgDefs()
                             .AddFromReflection(new PackageContainerHttpRepoSubset.ConnectExtendedRecord()))

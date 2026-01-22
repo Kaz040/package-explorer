@@ -21,7 +21,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 
 namespace AasxPackageExplorer
 {
@@ -602,7 +602,7 @@ namespace AasxPackageExplorer
             if (script?.HasContent() != true)
                 return;
             if (_logLevel >= 1)
-                Log.Singleton.Info(StoredPrint.Color.Blue, "Starting script with len {0} hash 0x{1:x}",
+                Log.Singleton.Info("Starting script with len {0} hash 0x{1:x}",
                     script.Length, script.GetHashCode());
             if (_worker != null)
             {

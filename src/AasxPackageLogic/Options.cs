@@ -7,6 +7,11 @@ This source code is licensed under the Apache License 2.0 (see LICENSE.txt).
 This source code may use other Open Source software components (see LICENSE.txt).
 */
 
+using AasxPackageLogic.PackageCentral;
+using AdminShellNS;
+using AnyUi;
+using Extensions;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -15,12 +20,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Web;
-using AasxPackageLogic.PackageCentral;
-using AdminShellNS;
-using AnyUi;
-using Extensions;
-using Newtonsoft.Json;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 
 // ReSharper disable UnassignedField.Global
 
@@ -422,6 +422,10 @@ namespace AasxPackageLogic
             Cmd = "-dataspecpreset", Arg = "<path>")]
         public string DataSpecPresetFile = null;
 
+        [OptionDescription(Description = "Path to JSON file defining query presets.",
+            Cmd = "-querypreset", Arg = "<path>")]
+        public string QueryPresetFile = null;
+
         [OptionDescription(Description = "Home address of the content browser on startup, on change of AASX",
             Cmd = "-contenthome", Arg = "<URL>")]
         public string ContentHome = @"https://github.com/admin-shell/io/blob/master/README.md";
@@ -690,6 +694,9 @@ namespace AasxPackageLogic
         [OptionDescription(Description = "May contain lines of key/value-pairs for HTTP header attributes, " +
             "delimited by double quotes.")]
         public string HttpHeaderAttributes = "";
+
+        [OptionDescription(Description = "For connecting to repositories/ registry, default pagination limit.")]
+        public int DefaultConnectPageLimit = 10;
 
         [OptionDescription(Description = "Point to a list of SecureConnectPresets for the respective dialogue")]
         [JetBrains.Annotations.UsedImplicitly]

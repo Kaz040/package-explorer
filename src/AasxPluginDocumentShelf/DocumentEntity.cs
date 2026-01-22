@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using AasxIntegrationBase;
 using AasxIntegrationBaseGdi;
 using AasxPredefinedConcepts;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 using AdminShellNS;
 using Extensions;
 using AnyUi;
@@ -85,7 +85,7 @@ namespace AasxPluginDocumentShelf
                 MimeType = file?.ContentType;
                 AasId = aasId;
                 SmId = smId;
-                IdShortPath = file?.CollectIdShortByParent(separatorChar: '.', excludeIdentifiable: true);
+                IdShortPath = file?.CollectIdShortPathByParent(separatorChar: '.', excludeIdentifiable: true);
             }
         }
 

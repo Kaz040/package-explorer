@@ -18,7 +18,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using AasxIntegrationBase;
 using AasxPredefinedConcepts;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 using AdminShellNS;
 using Extensions;
 using Newtonsoft.Json;
@@ -138,7 +138,7 @@ namespace AasxPluginMtpViewer
                 if (CheckIfPackageFile(inputFn))
                 {
                     // build idShort Path
-                    var idShortPath = "" + _activeMtpFileElem.CollectIdShortByParent(
+                    var idShortPath = "" + _activeMtpFileElem.CollectIdShortPathByParent(
                             separatorChar: '.', excludeIdentifiable: true);
 
                     // _mtpTypeSm might be in another AAS

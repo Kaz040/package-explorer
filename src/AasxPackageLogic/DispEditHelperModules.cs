@@ -27,7 +27,7 @@ using System.Xaml;
 using VDS.RDF.Parsing;
 using VDS.RDF;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 using Samm = AasCore.Samm2_2_0;
 using System.Text.RegularExpressions;
 using System.Runtime.Intrinsics.X86;
@@ -67,13 +67,17 @@ namespace AasxPackageLogic
             public string[] auxTitles = null;
             public string[] auxToolTips = null;
             public Func<int, AnyUiLambdaActionBase> auxLambda = null;
+            public Func<int, Task<AnyUiLambdaActionBase>> auxLambdaAsync = null;
 
             public DispEditInjectAction() { }
 
-            public DispEditInjectAction(string[] auxTitles, Func<int, AnyUiLambdaActionBase> auxLambda)
+            public DispEditInjectAction(string[] auxTitles, 
+                Func<int, AnyUiLambdaActionBase> auxLambda,
+                Func<int, Task<AnyUiLambdaActionBase>> auxLambdaAsync)
             {
                 this.auxTitles = auxTitles;
                 this.auxLambda = auxLambda;
+                this.auxLambdaAsync = auxLambdaAsync;
             }
 
             public DispEditInjectAction(string[] auxTitles, string[] auxToolTips,
@@ -148,9 +152,10 @@ namespace AasxPackageLogic
                     new HintCheck(
                         () => {
                             if (referable.IdShort == null) return false;
-                            return !AdminShellUtil.ComplyIdShort(referable.IdShort);
+                            return !Verification.MatchesIdShort(referable.IdShort);
+                            //return !AdminShellUtil.ComplyIdShort(referable.IdShort);
                         },
-                        "The idShort shall only feature letters, digits, underscore ('_'); " +
+                        "The idShort shall only feature letters, digits, underscore ('_'), hyphen ('-'); " +
                         "starting mandatory with a letter."),
                     new HintCheck(
                         () => {
@@ -158,7 +163,7 @@ namespace AasxPackageLogic
                         },
                         "The idShort contains 3 dashes. Probably, the entitiy was auto-named " +
                         "to keep it unique because of an operation such a copy/ paste.",
-                        severityLevel: HintCheck.Severity.Notice)
+                        severityLevel: HintCheck.Severity.High)
                     });
             }
             else
@@ -238,18 +243,22 @@ namespace AasxPackageLogic
             this.AddHintBubble(
                 stack, hintMode,
                 new HintCheck(() => referable.Category?.HasContent() == true,
-                "The use of category is deprecated. Do not plan to use this information in new developments.",
+                "The use of category is deprecated, hence the field is ReadOnly. Do not plan to use this information in new developments.",
                 severityLevel: HintCheck.Severity.Notice));
 
-            AddKeyValueExRef(
-                stack, "category", referable, referable.Category, null, repo,
-                v =>
-                {
-                    referable.Category = v as string;
-                    this.AddDiaryEntry(referable, new DiaryEntryStructChange());
-                    return new AnyUiLambdaActionNone();
-                },
-                comboBoxItems: new string[] { "CONSTANT", "PARAMETER", "VARIABLE" }, comboBoxIsEditable: true);
+            if (referable.Category?.HasContent() == true)
+            {
+                AddKeyValueExRef(
+                        stack, "category", referable, referable.Category, null, repo,
+                        v =>
+                        {
+                            referable.Category = v as string;
+                            this.AddDiaryEntry(referable, new DiaryEntryStructChange());
+                            return new AnyUiLambdaActionNone();
+                        }, isValueReadOnly: true);
+                //},
+                //comboBoxItems: new string[] { "CONSTANT", "PARAMETER", "VARIABLE" }, comboBoxIsEditable: true); 
+            }
 
             this.AddHintBubble(
                 stack, hintMode,
@@ -360,6 +369,17 @@ namespace AasxPackageLogic
             AddKeyValue(stack, "IdShort", "" + si.IdShort, repo: null);
             AddKeyValue(stack, "Id", "" + si.Id, repo: null);
 
+            AddKeyValue(stack, "Id endpoint", "" + si.Id, repo: null,
+                auxButtonTitle: "Copy",
+                auxButtonLambda: (i) => {
+                    this.context?.ClipboardSet(new AnyUiClipboardData(
+                        text: si.Id)
+                        { });
+                    Log.Singleton.Info(StoredPrint.Color.Blue, "Id copied to clipboard.");
+                    return new AnyUiLambdaActionNone();
+                },
+                auxButtonOverride: true);
+
             AddKeyValue(stack, "Queried endpoint", "" + si.QueriedEndpoint?.ToString(), repo: null,
                 auxButtonTitle: "Copy",
                 auxButtonLambda: (i) => {
@@ -371,7 +391,7 @@ namespace AasxPackageLogic
                     {
                         this.context?.ClipboardSet(new AnyUiClipboardData(
                             text: si.QueriedEndpoint.ToString())
-                        { });
+                            { });
                         Log.Singleton.Info(StoredPrint.Color.Blue, "Queried endpoint copied to clipboard.");
                     }
                     return new AnyUiLambdaActionNone();
@@ -389,13 +409,14 @@ namespace AasxPackageLogic
                     {
                         this.context?.ClipboardSet(new AnyUiClipboardData(
                             text: si.DesignatedEndpoint.ToString())
-                        { });
+                            { });
                         Log.Singleton.Info(StoredPrint.Color.Blue, "Designated endpoint copied to clipboard.");
                     }
                     return new AnyUiLambdaActionNone();
                 },
                 auxButtonOverride: true);
         }
+        
         public void DisplayOrEditEntityMissingSideInfo(
             AnyUiStackPanel stack, 
             string key)
@@ -451,6 +472,7 @@ namespace AasxPackageLogic
         //
 
         public void DisplayOrEditEntityIdentifiable(AnyUiStackPanel stack,
+            AdminShellPackageEnvBase packageEnv,
             Aas.IEnvironment env,
             Aas.IIdentifiable identifiable,
             string templateForIdString,
@@ -459,6 +481,10 @@ namespace AasxPackageLogic
             // access
             if (stack == null || identifiable == null)
                 return;
+
+            // special flags
+            var isDynEnv = packageEnv is AdminShellPackageDynamicFetchEnv;
+            var idReadOnly = isDynEnv && identifiable.Id?.HasContent() == true;
 
             // members
             this.AddGroup(stack, "Identifiable:", levelColors.SubSection);
@@ -496,20 +522,20 @@ namespace AasxPackageLogic
                     }))
             {
                 AddKeyValueExRef(
-                    stack, "id", identifiable, identifiable.Id, null, repo,
+                    stack, "id", identifiable, identifiable.Id, null, 
+                    (idReadOnly) ? null : repo,
                     v =>
                     {
                         var dr = new DiaryReference(identifiable);
                         string value = v as string;
-                        bool duplicate = false;
                         identifiable.Id = v as string;
-                        //mlem
                         this.AddDiaryEntry(identifiable, new DiaryEntryStructChange(), diaryReference: dr);
                         return new AnyUiLambdaActionNone();
                     },
                     takeOverLambdaAction: new AnyUiLambdaActionRedrawAllElements(nextFocus: identifiable),
+                    auxButtonOverride: true,
                     auxButtonTitles: DispEditInjectAction.GetTitles(new[] { "Generate" }, injectToId),
-                    auxButtonLambda: (i) =>
+                    auxButtonLambdaAsync: async (i) =>
                     {
                         if (i == 0)
                         {
@@ -521,7 +547,11 @@ namespace AasxPackageLogic
                         }
                         if (i >= 1)
                         {
-                            var la = injectToId?.auxLambda?.Invoke(i - 1);
+                            AnyUiLambdaActionBase la = null;
+                            if (injectToId?.auxLambda != null)
+                                la = injectToId.auxLambda?.Invoke(i - 1);
+                            if (injectToId?.auxLambdaAsync != null)
+                                la = await injectToId.auxLambdaAsync?.Invoke(i - 1);
                             return la;
                         }
                         return new AnyUiLambdaActionNone();
@@ -2805,8 +2835,8 @@ namespace AasxPackageLogic
                             return valueContent == null || valueContent.Trim().Length < 1 ||
                                 valueContent.IndexOf('/') < 1 || valueContent.EndsWith("/");
                         },
-                        "The content type of the file. Former known as MIME type. This is " +
-                        "mandatory information. See RFC2046.")
+                        "The content type of the file. Former known as MIME type. " +
+                        "See RFC2046.", severityLevel: HintCheck.Severity.Notice)
                 });
 
             AddKeyValueExRef(

@@ -17,7 +17,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 
 namespace AnyUi
 {
@@ -553,6 +553,7 @@ namespace AnyUi
         // in
         public AnyUiDialogueListItemList ListOfItems = null;
         public string[] AlternativeSelectButtons = null;
+        public bool SelectFiles = false;
 
         // out
         public int ResultIndex = -1;

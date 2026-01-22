@@ -7,18 +7,11 @@ This source code is licensed under the Apache License 2.0 (see LICENSE.txt).
 This source code may use other Open Source software components (see LICENSE.txt).
 */
 
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using AasxIntegrationBase;
-using AasxPackageLogic.PackageCentral;
 using AdminShellNS;
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace AasxPackageLogic.PackageCentral
 {
@@ -229,6 +222,30 @@ namespace AasxPackageLogic.PackageCentral
                 LogInternally.That.SilentlyIgnoredError(ex);
             }
             return null;
+        }
+
+        //
+        // Upload
+        //
+
+        // make adding a single file "deaf"
+        public override void AddByAasxFn(PackageCentral packageCentral, string fn)
+        {
+        }
+
+        // and "enable" the bulk adding
+        public override async Task AddByListOfAasxFn(PackageCentral packageCentral, IEnumerable<string> fns)
+        {
+            // access
+            if (packageCentral?.ExecuteMainCommand == null || fns == null)
+                return;
+
+            // try to trigger UI
+            await packageCentral.ExecuteMainCommand.ExecuteMainMenuCommand(
+                    "ApiUploadFiles", false,
+                    "BaseType", "Repository",
+                    "BaseAddress", "" + this.Endpoint?.ToString(),
+                    "Filenames", fns);
         }
 
     }

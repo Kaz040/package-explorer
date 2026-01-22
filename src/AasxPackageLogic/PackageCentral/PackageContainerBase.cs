@@ -20,7 +20,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 
 namespace AasxPackageLogic.PackageCentral
 {
@@ -102,6 +102,12 @@ namespace AasxPackageLogic.PackageCentral
         /// specific configuration or user UI invocation.
         /// </summary>
         public ISecurityAccessHandler SecurityAccessHandler = null;
+
+        /// <summary>
+        /// If set, allows to realize a user interaction to specifiy, if Identifiables shall be
+        /// uploaded to a remote repository or not and to which base URI this should happen.
+        /// </summary>
+        public Func<Uri, Aas.IIdentifiable, Task<Uri>> GetBaseUriForNewIdentifiablesHandler = null;
     }
 
     /// <summary>
