@@ -41,7 +41,7 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         public CD_EndpointMetadata EndpointMetadata = new CD_EndpointMetadata();
 
         [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/InteractionMetadata", Card = AasxPredefinedCardinality.One)]
-        public CD_InterfaceMetadata InteractionMetadata = new CD_InterfaceMetadata();
+        public CD_InteractionMetadata InteractionMetadata = new CD_InteractionMetadata();
 
         [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/ExternalDescriptor", Card = AasxPredefinedCardinality.ZeroToOne)]
         public CD_ExternalDescriptor ExternalDescriptor = null;
@@ -112,6 +112,12 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
 
         [AasConcept(Cd = "https://www.w3.org/2019/wot/security#OAuth2SecurityScheme", Card = AasxPredefinedCardinality.ZeroToOne)]
         public CD_Oauth2_sc Oauth2_sc = null;
+
+        [AasConcept(Cd = "http://opcfoundation.org/UA/WoT-Binding/OPCUASecurityChannelScheme", Card = AasxPredefinedCardinality.ZeroToOne)]
+        public CD_Opcua_channel_sc Opcua_channel_sc = null;
+
+        [AasConcept(Cd = "http://opcfoundation.org/UA/WoT-Binding/OPCUASecurityAuthenticationScheme ", Card = AasxPredefinedCardinality.ZeroToOne)]
+        public CD_Opcua_authentication_sc Opcua_authentication_sc = null;
 
         // auto-generated informations
         public AasClassMapperInfo __Info__ = null;
@@ -306,8 +312,46 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         public AasClassMapperInfo __Info__ = null;
     }
 
+    [AasConcept(Cd = "https://www.w3.org/2019/wot/security#OAuth2SecurityScheme")]
+    public class CD_Opcua_channel_sc
+    {
+        [AasConcept(Cd = "https://www.w3.org/2019/wot/security#SecurityScheme", Card = AasxPredefinedCardinality.One)]
+        public string Scheme;
+
+        [AasConcept(Cd = "http://opcfoundation.org/UA/WoT-Binding/securityMode ", Card = AasxPredefinedCardinality.One)]
+        public string Uav_securityMode;
+
+        [AasConcept(Cd = "http://opcfoundation.org/UA/WoT-Binding/securityPolicy", Card = AasxPredefinedCardinality.One)]
+        public string Uav_securityPolicy;
+
+        [AasConcept(Cd = "https://www.w3.org/2019/wot/security#proxy", Card = AasxPredefinedCardinality.ZeroToOne)]
+        public string Proxy;
+
+        // auto-generated informations
+        public AasClassMapperInfo __Info__ = null;
+    }
+
+    [AasConcept(Cd = "https://www.w3.org/2019/wot/security#OAuth2SecurityScheme")]
+    public class CD_Opcua_authentication_sc
+    {
+        [AasConcept(Cd = "https://www.w3.org/2019/wot/security#SecurityScheme", Card = AasxPredefinedCardinality.One)]
+        public string Scheme;
+
+        [AasConcept(Cd = "http://opcfoundation.org/UA/WoT-Binding/userIdentityToken", Card = AasxPredefinedCardinality.One)]
+        public string Uav_userIdentityToken;
+
+        [AasConcept(Cd = "http://opcfoundation.org/UA/WoT-Binding/issueToken", Card = AasxPredefinedCardinality.ZeroToOne)]
+        public AasClassMapperHintedReference Uav_issueToken = new AasClassMapperHintedReference();
+
+        [AasConcept(Cd = "https://www.w3.org/2019/wot/security#proxy", Card = AasxPredefinedCardinality.ZeroToOne)]
+        public string Proxy;
+
+        // auto-generated informations
+        public AasClassMapperInfo __Info__ = null;
+    }
+
     [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/InterfaceMetadata")]
-    public class CD_InterfaceMetadata
+    public class CD_InteractionMetadata
     {
         [AasConcept(Cd = "https://www.w3.org/2019/wot/td#PropertyAffordance", Card = AasxPredefinedCardinality.ZeroToOne)]
         public CD_PropertiesAffordance Properties = null;
@@ -351,6 +395,9 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         [AasConcept(Cd = "https://www.w3.org/2019/wot/json-schema#const", Card = AasxPredefinedCardinality.ZeroToOne)]
         public int? Const;
 
+        [AasConcept(Cd = "https://www.w3.org/2019/wot/json-schema#enum", Card = AasxPredefinedCardinality.ZeroToOne)]
+        public CD_Enum Enum = new CD_Enum();
+
         [AasConcept(Cd = "https://www.w3.org/2019/wot/json-schema#default", Card = AasxPredefinedCardinality.ZeroToOne)]
         public string Default;
 
@@ -375,8 +422,18 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         [AasConcept(Cd = "https://www.w3.org/2019/wot/td#hasUriTemplateSchema", Card = AasxPredefinedCardinality.ZeroToOne)]
         public CD_Properties UriVariables = null;
 
+        [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/valueSemantics", Card = AasxPredefinedCardinality.ZeroToOne)]
+        public AasClassMapperHintedReference ValueSemanticas = new AasClassMapperHintedReference();
+
         [AasConcept(Cd = "https://www.w3.org/2019/wot/td#hasForm", Card = AasxPredefinedCardinality.One)]
         public CD_Forms Forms = new CD_Forms();
+
+        // auto-generated informations
+        public AasClassMapperInfo __Info__ = null;
+    }
+
+    public class CD_Enum
+    {
 
         // auto-generated informations
         public AasClassMapperInfo __Info__ = null;
@@ -408,6 +465,9 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
 
         [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/lengthRange", Card = AasxPredefinedCardinality.ZeroToOne)]
         public AasClassMapperRange<string> LengthRange = null;
+
+        [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/valueSemantics", Card = AasxPredefinedCardinality.ZeroToOne)]
+        public AasClassMapperHintedReference ValueSemanticas = new AasClassMapperHintedReference();
 
         // auto-generated informations
         public AasClassMapperInfo __Info__ = null;
@@ -480,11 +540,8 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         [AasConcept(Cd = "https://www.w3.org/2019/wot/mqtt#hasQoSFlag", Card = AasxPredefinedCardinality.ZeroToOne)]
         public string Mqv_qos;
 
-        [AasConcept(Cd = "https://www.w3.org/2019/wot/opc-ua#pollingTime", Card = AasxPredefinedCardinality.ZeroToOne)]
-        public string OpcUa_pollingTime;
-
-        [AasConcept(Cd = "https://www.w3.org/2019/wot/opc-ua#timeout", Card = AasxPredefinedCardinality.ZeroToOne)]
-        public string OpcUa_timeout;
+        [AasConcept(Cd = "http://opcfoundation.org/UA/WoT-Binding#browsePath", Card = AasxPredefinedCardinality.ZeroToOne)]
+        public string Uav_browsePath;
 
         [AasConcept(Cd = "http://www.w3.org/2022/bacnet#usesService", Card = AasxPredefinedCardinality.ZeroToOne)]
         public string Bacv_useService;
@@ -604,7 +661,7 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         public List<CD_GenericInterface> InterfaceMQTT = new List<CD_GenericInterface>();
 
         [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/Interface", Card = AasxPredefinedCardinality.ZeroToMany,
-            SupplSemId = "http://www.w3.org/2011/opc-ua")]
+            SupplSemId = "http://opcfoundation.org/UA/WoT-Binding")]
         public List<CD_GenericInterface> InterfaceOPCUA = new List<CD_GenericInterface>();
 
         [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/Interface", Card = AasxPredefinedCardinality.ZeroToMany,
@@ -614,7 +671,4 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         // auto-generated informations
         public AasClassMapperInfo __Info__ = null;
     }
-
-  
 }
-
