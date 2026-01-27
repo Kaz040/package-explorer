@@ -12,6 +12,7 @@ using AdminShellNS;
 using Extensions;
 using System;
 using System.Collections.Generic;
+using static AasxPredefinedConcepts.ConceptModel.ConceptModelZveiTechnicalData;
 using Aas = AasCore.Aas3_1;
 
 // These classes were serialized by "export predefined concepts"
@@ -20,7 +21,7 @@ using Aas = AasCore.Aas3_1;
 
 namespace AasxPredefinedConcepts.AssetInterfacesDescription
 {
-
+    
     [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/Interface")]
     public class CD_GenericInterface
     {
@@ -586,9 +587,9 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         // auto-generated informations
         public AasClassMapperInfo __Info__ = null;
     }
-
+    
     [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/Submodel")]
-    public class CD_AssetInterfacesDescription
+    public class CD_AssetInterfacesDescription    
     {
         [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/Interface", Card = AasxPredefinedCardinality.ZeroToMany,
             SupplSemId = "http://www.w3.org/2011/http")]
@@ -613,5 +614,7 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         // auto-generated informations
         public AasClassMapperInfo __Info__ = null;
     }
+
+  
 }
 

@@ -114,55 +114,6 @@ namespace AasxPluginAssetInterfaceDescription
                         return res;
                     }
                 }
-
-                // WRITE operation
-                else if (item.FormData.Bacv_useService.Trim().ToLower() == "writeproperty")
-                {
-                    try
-                    {
-                        if (item.MapOutputItems != null)
-                            foreach (var moi in item.MapOutputItems)
-                            {
-                                // valid?
-                                if (moi?.MapRelation?.Second == null)
-                                    continue;
-
-                                // For literal payloads
-                                else if (moi.MapRelation.SecondHint is Aas.Property prop)
-                                {
-                                    if (item.Value == "" || prop.Value == item.Value)
-                                    {
-                                        IList<BacnetValue> values_r2 = new List<BacnetValue>();
-                                        bool result_r2 = Client.ReadPropertyRequest(deviceAddress, objectId, propertyId, out values_r2);
-                                        if (result_r2 && values_r2.Count > 0 && values_r2[0].Value != null && prop.Value == item.Value)
-                                        {
-                                            float val_r2 = (float)values_r2[0].Value;
-                                            item.Value = val_r2.ToString("R", CultureInfo.InvariantCulture);
-                                            NotifyOutputItems(item, item.Value);
-                                            res = 1;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        float staticValue = float.Parse(prop.Value, CultureInfo.InvariantCulture);
-                                        BacnetValue[] values_w = new BacnetValue[] { new BacnetValue(staticValue) };
-                                        bool result_w = Client.WritePropertyRequest(deviceAddress, objectId, propertyId, values_w);
-                                        if (result_w)
-                                        {
-                                            float val_r3 = (float)values_w[0].Value;
-                                            item.Value = val_r3.ToString("R", CultureInfo.InvariantCulture);
-                                            NotifyOutputItems(item, item.Value);
-                                            res = 1;
-                                        }
-                                    }
-                                }
-                            }
-                    }
-                    catch (Exception)
-                    {
-                        return res;
-                    }
-                }
             }
             catch (Exception)
             {

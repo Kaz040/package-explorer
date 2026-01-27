@@ -25,7 +25,7 @@ using System.Net;
 using System.Reflection;
 using System.Windows.Shapes;
 using Workstation.ServiceModel.Ua;
-using Aas = AasCore.Aas3_0;
+using Aas = AasCore.Aas3_1;
 
 namespace AasxPluginAssetInterfaceDescription
 {

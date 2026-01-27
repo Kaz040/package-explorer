@@ -7,28 +7,29 @@ This source code is licensed under the Apache License 2.0 (see LICENSE.txt).
 This source code may use other Open Source software components (see LICENSE.txt).
 */
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using AasxIntegrationBase;
+using AasxIntegrationBase.AdminShellEvents;
 using AasxPredefinedConcepts;
-using Aas = AasCore.Aas3_1;
+using AasxPredefinedConcepts.AssetInterfacesDescription;
 using AdminShellNS;
 using AdminShellNS.DiaryData;
-using Extensions;
-using AasxIntegrationBase;
-using AasxPredefinedConcepts.AssetInterfacesDescription;
-using FluentModbus;
-using System.Net;
-using System.Text.RegularExpressions;
-using System.Globalization;
 using AnyUi;
-using System.Windows.Media.Animation;
-using AasxIntegrationBase.AdminShellEvents;
-using System.IO;
-using Newtonsoft.Json.Linq;
+using Extensions;
+using FluentModbus;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows.Controls;
+using System.Windows.Media.Animation;
+using Aas = AasCore.Aas3_1;
 
 namespace AasxPluginAssetInterfaceDescription
 {
@@ -429,6 +430,13 @@ namespace AasxPluginAssetInterfaceDescription
     public class AidAllInterfaceStatus
     {
         /// <summary>
+        /// Flag to enable or disable protocols in the UI based on AID version.
+        /// Version 1.0 will enable HTTP, MODBUS and MQTT.
+        /// version 1.1 will enable HTTP, MODBUS, MQTT, OPCUA and BACNET.
+        /// </summary>
+        public bool AidVersion1_1 = false;
+        
+        /// <summary>
         /// Set to logger, if logging is desired.
         /// </summary>
         protected LogInstance _log = null;
@@ -451,7 +459,7 @@ namespace AasxPluginAssetInterfaceDescription
         /// <summary>
         /// Current setting, which technologies shall be used.
         /// </summary>
-        public bool[] UseTech = { false, false, false, true, true };
+        public bool[] UseTech = { true, false, false, false, false };
 
         /// <summary>
         /// Will hold connections steady and continously update values, either by
@@ -497,7 +505,7 @@ namespace AasxPluginAssetInterfaceDescription
             if (sm == null || optRec == null)
                 return;
 
-            if (optRec.IsDescription)
+            if (optRec.IsDescription1_0 || optRec.IsDescription1_1)
                 SmAidDescription = sm;
 
             if (adoptUseFlags)
@@ -812,25 +820,27 @@ namespace AasxPluginAssetInterfaceDescription
             InterfaceStatus.Clear();
             if (smAid == null)
                 return;
-
+         
             // get data AID
             var dataAid = new AasxPredefinedConcepts.AssetInterfacesDescription.CD_AssetInterfacesDescription();
             PredefinedConceptsClassMapper.ParseAasElemsToObject(smAid, dataAid, lambdaLookupReference);
-
+  
             // get data MC
             var dataMc = (smMapping != null) ?
-                new AasxPredefinedConcepts.AssetInterfacesMappingConfiguration.
-                    CD_AssetInterfacesMappingConfiguration() : null;
+                    new AasxPredefinedConcepts.AssetInterfacesMappingConfiguration.
+                        CD_AssetInterfacesMappingConfiguration() : null;
             PredefinedConceptsClassMapper.ParseAasElemsToObject(smMapping, dataMc, lambdaLookupReference);
 
             // prepare
             foreach (var tech in AdminShellUtil.GetEnumValues<AidInterfaceTechnology>())
             {
                 var ifxs = dataAid?.InterfaceHTTP;
+                ifxs = null;
+                if (tech == AidInterfaceTechnology.HTTP) ifxs = dataAid?.InterfaceHTTP;
                 if (tech == AidInterfaceTechnology.Modbus) ifxs = dataAid?.InterfaceMODBUS;
                 if (tech == AidInterfaceTechnology.MQTT) ifxs = dataAid?.InterfaceMQTT;
-                if (tech == AidInterfaceTechnology.OPCUA) ifxs = dataAid?.InterfaceOPCUA;
-                if (tech == AidInterfaceTechnology.BACNET) ifxs = dataAid?.InterfaceBACNET;
+                if (tech == AidInterfaceTechnology.OPCUA && AidVersion1_1) ifxs = dataAid?.InterfaceOPCUA;
+                if (tech == AidInterfaceTechnology.BACNET && AidVersion1_1) ifxs = dataAid?.InterfaceBACNET;
                 if (ifxs == null || ifxs.Count < 1)
                     continue;
                 foreach (var ifx in ifxs)
