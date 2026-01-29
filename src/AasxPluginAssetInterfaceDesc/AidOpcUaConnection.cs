@@ -138,8 +138,10 @@ namespace AasxPluginAssetInterfaceDescription
             // careful
             try
             {
+                var nodePath = "" + item.FormData?.Href;
+                nodePath = nodePath.Replace("/?id =", "").Trim();
                 // get an node id?
-                var nid = Client.ParseAndCreateNodeId(item?.FormData?.Href);
+                var nid = Client.ParseAndCreateNodeId(nodePath);
 
                 // direct read possible?
                 var dv = await Client.ReadNodeIdAsync(nid);
@@ -198,10 +200,13 @@ namespace AasxPluginAssetInterfaceDescription
             foreach (var item in items)
             {
                 // valid href?
+
                 var nodePath = "" + item.FormData?.Href;
-                nodePath = nodePath.Trim();
+                nodePath = nodePath.Replace("/?id =", "").Trim();
                 if (!nodePath.HasContent())
                     continue;
+
+                
 
                 // get an node id?
                 var nid = Client.ParseAndCreateNodeId(nodePath);

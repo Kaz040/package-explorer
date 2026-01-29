@@ -976,20 +976,6 @@ namespace AasxPluginAssetInterfaceDescription
                     ref ifc.TimeOutMs, 10.0, defaultTimeOutMs,
                     SelectValuesToIntList(ifc?.Items?.Values, (it) => it.FormData?.Modv_timeout));
             }
-
-            // for OPC UA, analyze update frequency and timeout
-            foreach (var ifc in InterfaceStatus.Where((i) => i.Technology == AidInterfaceTechnology.OPCUA))
-            {
-                // polltimes
-                SetDoubleOnDefaultOrAvgOfIntList(
-                    ref ifc.UpdateFreqMs, 10.0, defaultUpdateFreqMs,
-                    SelectValuesToIntList(ifc?.Items?.Values, (it) => it.FormData?.OpcUa_pollingTime));
-
-                // time out
-                SetDoubleOnDefaultOrAvgOfIntList(
-                    ref ifc.TimeOutMs, 10.0, defaultTimeOutMs,
-                    SelectValuesToIntList(ifc?.Items?.Values, (it) => it.FormData?.OpcUa_timeout));
-            }
         }
     }
 
