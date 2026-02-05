@@ -78,7 +78,9 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
     [AasConcept(Cd = "https://www.w3.org/2019/wot/td#hasSecurityConfiguration")]
     public class CD_Security
     {
-
+        [AasConcept(Cd = "https://www.w3.org/2019/wot/td#definesSecurityScheme", Card = AasxPredefinedCardinality.ZeroToMany)]
+        public List<AasClassMapperHintedReference> SecurityRef = new List<AasClassMapperHintedReference>();
+        
         // auto-generated informations
         public AasClassMapperInfo __Info__ = null;
     }
@@ -171,10 +173,10 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         [AasConcept(Cd = "https://www.w3.org/2019/wot/security#SecurityScheme", Card = AasxPredefinedCardinality.One)]
         public string Scheme;
 
-        [AasConcept(Cd = "https://www.w3.org/2019/wot/json-schema#oneOf", Card = AasxPredefinedCardinality.One)]
+        [AasConcept(Cd = "https://www.w3.org/2019/wot/security#oneOf", Card = AasxPredefinedCardinality.One)]
         public CD_OneOf OneOf = new CD_OneOf();
 
-        [AasConcept(Cd = "https://www.w3.org/2019/wot/json-schema#allOf", Card = AasxPredefinedCardinality.One)]
+        [AasConcept(Cd = "https://www.w3.org/2019/wot/security#allOf", Card = AasxPredefinedCardinality.One)]
         public CD_AllOf AllOf = new CD_AllOf();
 
         [AasConcept(Cd = "https://www.w3.org/2019/wot/security#proxy", Card = AasxPredefinedCardinality.ZeroToOne)]
@@ -184,18 +186,20 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         public AasClassMapperInfo __Info__ = null;
     }
 
-    [AasConcept(Cd = "https://www.w3.org/2019/wot/json-schema#oneOf")]
+    [AasConcept(Cd = "https://www.w3.org/2019/wot/security#oneOf")]
     public class CD_OneOf
     {
-
+        [AasConcept(Cd = "https://www.w3.org/2019/wot/td#definesSecurityScheme", Card = AasxPredefinedCardinality.ZeroToMany)]
+        public List<AasClassMapperHintedReference> SecurityRef = new List<AasClassMapperHintedReference>();
         // auto-generated informations
         public AasClassMapperInfo __Info__ = null;
     }
 
-    [AasConcept(Cd = "https://www.w3.org/2019/wot/json-schema#allOf")]
+    [AasConcept(Cd = "https://www.w3.org/2019/wot/security#allOf")]
     public class CD_AllOf
     {
-
+        [AasConcept(Cd = "https://www.w3.org/2019/wot/td#definesSecurityScheme", Card = AasxPredefinedCardinality.ZeroToMany)]
+        public List<AasClassMapperHintedReference> SecurityRef = new List<AasClassMapperHintedReference>();
         // auto-generated informations
         public AasClassMapperInfo __Info__ = null;
     }
@@ -312,7 +316,7 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         public AasClassMapperInfo __Info__ = null;
     }
 
-    [AasConcept(Cd = "https://www.w3.org/2019/wot/security#OAuth2SecurityScheme")]
+    [AasConcept(Cd = "http://opcfoundation.org/UA/WoT-Binding/OPCUASecurityChannelScheme")]
     public class CD_Opcua_channel_sc
     {
         [AasConcept(Cd = "https://www.w3.org/2019/wot/security#SecurityScheme", Card = AasxPredefinedCardinality.One)]
@@ -331,7 +335,7 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         public AasClassMapperInfo __Info__ = null;
     }
 
-    [AasConcept(Cd = "https://www.w3.org/2019/wot/security#OAuth2SecurityScheme")]
+    [AasConcept(Cd = "http://opcfoundation.org/UA/WoT-Binding/OPCUASecurityAuthenticationScheme")]
     public class CD_Opcua_authentication_sc
     {
         [AasConcept(Cd = "https://www.w3.org/2019/wot/security#SecurityScheme", Card = AasxPredefinedCardinality.One)]
@@ -350,7 +354,7 @@ namespace AasxPredefinedConcepts.AssetInterfacesDescription
         public AasClassMapperInfo __Info__ = null;
     }
 
-    [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/InterfaceMetadata")]
+    [AasConcept(Cd = "https://admin-shell.io/idta/AssetInterfacesDescription/1/0/InteractionMetadata")]
     public class CD_InteractionMetadata
     {
         [AasConcept(Cd = "https://www.w3.org/2019/wot/td#PropertyAffordance", Card = AasxPredefinedCardinality.ZeroToOne)]

@@ -29,6 +29,8 @@ using MQTTnet;
 using MQTTnet.Client;
 using System.Web.Services.Description;
 using AasxOpcUa2Client;
+using System.IO;
+
 
 
 #if OPCUA2
@@ -75,13 +77,18 @@ namespace AasxPluginAssetInterfaceDescription
                 // make client
                 // use the full target uri as endpoint (first)
 #if OPCUA2
+                
                 Client = new AasOpcUaClient2(
                     TargetUri.ToString(),
                     autoAccept: true,
                     userName: this.User,
                     password: this.Password,
                     timeOutMs: (TimeOutMs >= 10) ? (uint)TimeOutMs : 2000,
-                    log: Log);
+                    log: Log,
+                    securityMode: (MessageSecurityMode?)this.SecurityMode,
+                    securityPolicy: this.SecurityPolicy,
+                    autoConnect: this.OPCAutoConnection);
+                
 #else
                 Client = new AasOpcUaClient(
                     TargetUri.ToString(), 
@@ -146,6 +153,9 @@ namespace AasxPluginAssetInterfaceDescription
                 // direct read possible?
                 var dv = await Client.ReadNodeIdAsync(nid);
                 item.Value = AdminShellUtil.ToStringInvariant(dv?.Value);
+
+                // notify
+                NotifyOutputItems(item, item.Value);
                 LastActive = DateTime.Now;
 
                 // success 

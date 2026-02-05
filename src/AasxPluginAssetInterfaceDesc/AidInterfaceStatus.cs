@@ -7,6 +7,7 @@ This source code is licensed under the Apache License 2.0 (see LICENSE.txt).
 This source code may use other Open Source software components (see LICENSE.txt).
 */
 
+using AasCore.Aas3_1;
 using AasxIntegrationBase;
 using AasxIntegrationBase.AdminShellEvents;
 using AasxPredefinedConcepts;
@@ -29,6 +30,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Controls;
 using System.Windows.Media.Animation;
+using static System.Net.WebRequestMethods;
 using Aas = AasCore.Aas3_1;
 
 namespace AasxPluginAssetInterfaceDescription
@@ -129,6 +131,27 @@ namespace AasxPluginAssetInterfaceDescription
         /// </summary>
         public string EndpointBase = "";
 
+        ///<summary>
+        /// For creating OPC UA secured channel. it can be either None, Sign, SignAndEncrypt
+        ///</summary>
+
+        public int SecurityMode = 1;
+
+        /// <summary>
+        /// For creating OPC UA security channel. For this version, only
+        /// None, Basic256Sha256, Aes128_Sha256_RsaOaep, Aes256_Sha256_RsaPss, 
+        /// Outdated(not recommended policies):Basic256, Basic128Rsa15
+        /// </summary>
+
+        public string SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#None";
+
+        /// <summary>
+        /// For creating OPC UA security channel. 
+        /// when AutoConnection is true, the client gets endpoints from server 
+        /// and pick one from the list of endpoints to set up the session.
+        /// </summary>
+
+        public bool OPCAutoConnection = false;
 
         /// <summary>
         /// Used by byteStream payload for decoding, presently, mainly used by Modbus but other protocols will also be using it
@@ -257,6 +280,28 @@ namespace AasxPluginAssetInterfaceDescription
         /// For initiating the connection. Right now, not foreseen/ encouraged by the SMT.
         /// </summary>
         public string Password = null;
+
+        ///<summary>
+        /// For creating OPC UA secured channel. it can be either None, Sign, SignAndEncrypt
+        ///</summary>
+
+        public int SecurityMode = 1;
+
+        /// <summary>
+        /// For creating OPC UA security channel. For this version, only
+        /// None, Basic256Sha256, Aes128_Sha256_RsaOaep, Aes256_Sha256_RsaPss, 
+        /// Outdated(not recommended policies):Basic256, Basic128Rsa15
+        /// </summary>
+
+        public string SecurityPolicy = null;
+
+        /// <summary>
+        /// For creating OPC UA security channel. 
+        /// when AutoConnection is true, the client gets endpoints from server 
+        /// and pick one from the list of endpoints to set up the session.
+        /// </summary>
+
+        public bool OPCAutoConnection = false;
 
         /// <summary>
         /// Used by byteStream payload for decoding, presently, mainly used by Modbus but other protocols will also be using it
@@ -550,6 +595,9 @@ namespace AasxPluginAssetInterfaceDescription
 
                 case AidInterfaceTechnology.OPCUA:
                     conn = OpcUaConnections.GetOrCreate(endpointBase, log);
+                    conn.OPCAutoConnection = ifcStatus.OPCAutoConnection;
+                    conn.SecurityMode = ifcStatus.SecurityMode;
+                    conn.SecurityPolicy = ifcStatus.SecurityPolicy;
                     break;
 
                 case AidInterfaceTechnology.BACNET:
@@ -820,11 +868,11 @@ namespace AasxPluginAssetInterfaceDescription
             InterfaceStatus.Clear();
             if (smAid == null)
                 return;
-         
+
             // get data AID
             var dataAid = new AasxPredefinedConcepts.AssetInterfacesDescription.CD_AssetInterfacesDescription();
             PredefinedConceptsClassMapper.ParseAasElemsToObject(smAid, dataAid, lambdaLookupReference);
-  
+
             // get data MC
             var dataMc = (smMapping != null) ?
                     new AasxPredefinedConcepts.AssetInterfacesMappingConfiguration.
@@ -849,6 +897,7 @@ namespace AasxPluginAssetInterfaceDescription
                     var dn = AdminShellUtil.TakeFirstContent(ifx.Title, ifx.__Info__?.Referable?.IdShort);
                     var aidIfx = new AidInterfaceStatus()
                     {
+                        
                         Technology = tech,
                         DisplayName = $"{dn}",
                         Info = $"{ifx.EndpointMetadata?.Base}",
@@ -911,10 +960,112 @@ namespace AasxPluginAssetInterfaceDescription
                         continue;
                     foreach (var propName in ifx.InteractionMetadata?.Properties?.Property)
                         recurseProp("\u2302", propName);
+
+                    //Handling of opc ua security
+                    if (aidIfx.Technology == AidInterfaceTechnology.OPCUA)
+                    {
+                        ExtractSecurityData(ifx, aidIfx);
+
+                    }
+
                 }
             }
         }
 
+        protected void ExtractSecurityData(CD_GenericInterface ifx, AidInterfaceStatus aidIfx)
+        {
+            if (ifx.EndpointMetadata.Security.SecurityRef.Count > 0 &&
+                ifx.EndpointMetadata.Security.SecurityRef[0].ValueHint != null &&
+                ifx.EndpointMetadata.Security.SecurityRef[0].ValueHint is SubmodelElementCollection securityRef)
+            {
+
+                if (securityRef.SemanticId?.GetAsExactlyOneKey().Value == "https://www.w3.org/2019/wot/security#NoSecurityScheme")
+                {
+                    aidIfx.SecurityMode = 1;
+                    aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#None";
+                    return;
+                }
+                else if (securityRef.SemanticId?.GetAsExactlyOneKey().Value == "https://www.w3.org/2019/wot/security#AutoSecurityScheme")
+                {
+                    aidIfx.OPCAutoConnection = true;
+                    return;
+
+                }
+                else if(securityRef.SemanticId?.GetAsExactlyOneKey().Value == "https://www.w3.org/2019/wot/security#ComboSecurityScheme")
+                {
+                    //Combo Security implementation here
+                    // Handling allOf
+                    foreach(var opcuaSecurityRef in ifx.EndpointMetadata.SecurityDefinitions.Combo_sc.AllOf.SecurityRef)
+                    {
+                        if(opcuaSecurityRef != null && opcuaSecurityRef.ValueHint is SubmodelElementCollection opcuasec)
+                        {
+                            if(opcuasec.SemanticId.GetAsExactlyOneKey().Value == "http://opcfoundation.org/UA/WoT-Binding/OPCUASecurityChannelScheme")
+                            {
+                                switch(ifx.EndpointMetadata.SecurityDefinitions.Opcua_channel_sc.Uav_securityMode.ToLower())
+                                {
+                                    case "none":
+                                        aidIfx.SecurityMode = 1;
+                                        break;
+                                    case "sign":
+                                        aidIfx.SecurityMode = 2;
+                                        break;
+                                    case "signandencrypt":
+                                        aidIfx.SecurityMode = 3;
+                                        break;
+
+                                }
+                                switch (ifx.EndpointMetadata.SecurityDefinitions.Opcua_channel_sc.Uav_securityPolicy.ToLower())
+                                {
+                                    case "basic256sha256":
+                                        aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256";
+                                        break;
+                                    case "aes128_sha256_rsaoaep":
+                                        aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep";
+                                        break;
+                                    case "aes256_sha256_rsapss":
+                                        aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss";
+                                        break;
+                                    case "basic256":
+                                        aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#Basic256";
+                                        break;
+                                    case "basic128rsa15":
+                                        aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15";
+                                        break;
+                                }
+                            }
+                            //else if (opcuasec.SemanticId.GetAsExactlyOneKey().Value == "http://opcfoundation.org/UA/WoT-Binding/OPCUASecurityAuthenticationScheme")
+                            //{
+                            //    switch(ifx.EndpointMetadata.SecurityDefinitions.Opcua_authentication_sc.Uav_userIdentityToken.ToLower())
+                            //    {
+                            //        case "anonymous":
+                            //            aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256";
+                            //            break;
+                            //        case "username":
+                            //            aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep";
+                            //            break;
+                            //    }
+
+                            //}
+                        }
+                        
+
+                    }
+                    return;
+                }
+                else
+                {
+                    aidIfx.SecurityMode = 1;
+                    aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#None";
+                    return;
+                }
+            }
+            else
+            {
+                aidIfx.SecurityMode = 1;
+                aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#None";
+                return;
+            }
+        }
         protected List<int> SelectValuesToIntList<ITEM>(
             IEnumerable<ITEM> items,
             Func<ITEM, string> selectStringValue) where ITEM : class
