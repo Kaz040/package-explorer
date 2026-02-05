@@ -1012,6 +1012,10 @@ namespace AasxPluginAssetInterfaceDescription
                                     case "signandencrypt":
                                         aidIfx.SecurityMode = 3;
                                         break;
+                                    default:
+                                        aidIfx.SecurityMode = 1;
+                                        break;
+
 
                                 }
                                 switch (ifx.EndpointMetadata.SecurityDefinitions.Opcua_channel_sc.Uav_securityPolicy.ToLower())
@@ -1031,23 +1035,13 @@ namespace AasxPluginAssetInterfaceDescription
                                     case "basic128rsa15":
                                         aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15";
                                         break;
+                                    default:
+                                        aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#None";
+                                        break;
                                 }
                             }
-                            //else if (opcuasec.SemanticId.GetAsExactlyOneKey().Value == "http://opcfoundation.org/UA/WoT-Binding/OPCUASecurityAuthenticationScheme")
-                            //{
-                            //    switch(ifx.EndpointMetadata.SecurityDefinitions.Opcua_authentication_sc.Uav_userIdentityToken.ToLower())
-                            //    {
-                            //        case "anonymous":
-                            //            aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256";
-                            //            break;
-                            //        case "username":
-                            //            aidIfx.SecurityPolicy = "http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep";
-                            //            break;
-                            //    }
-
-                            //}
+                            
                         }
-                        
 
                     }
                     return;
